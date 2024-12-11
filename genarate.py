@@ -46,34 +46,11 @@ data['day_of_week'] = data['transaction_date'].dt.day_name()
 data['month'] = data['transaction_date'].dt.month
 data['hour'] = pd.to_datetime(data['transaction_time'], format='%H:%M:%S').dt.hour
 
-# Step 4: Data Exploration
-# Plot sales trends
-sales_trend = data.groupby('transaction_date')['transaction_qty'].sum()
-plt.figure(figsize=(12, 6))
-plt.plot(sales_trend)
-plt.title('Sales Trend Over Time')
-plt.xlabel('Date')
-plt.ylabel('Total Sales')
-plt.show()
-
-# Day of the week analysis
-day_sales = data.groupby('day_of_week')['transaction_qty'].sum().sort_values()
-day_sales.plot(kind='bar', figsize=(10, 5), title='Sales by Day of the Week')
-plt.ylabel('Total Sales')
-plt.show()
-
-# Top products
-top_products = data.groupby('product_type')['transaction_qty'].sum().sort_values(ascending=False)
-top_products.plot(kind='bar', figsize=(10, 5), title='Top Products by Quantity Sold')
-plt.ylabel('Total Quantity Sold')
-plt.show()
-
-# Step 5: Feature Engineering
+# Step 4: Feature Engineering
 data['revenue'] = data['transaction_qty'] * data['unit_price']
 features = ['transaction_qty', 'unit_price', 'hour', 'day_of_week', 'month']
 data = pd.get_dummies(data, columns=['day_of_week'], drop_first=True)
 
-# Step 6: Model Selection and Training
 # Prepare data for regression
 X = data.drop(['transaction_id', 'transaction_date', 'transaction_time', 'store_id',
                'store_location', 'product_id', 'product_category', 'product_type',
@@ -86,10 +63,10 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 # Save feature names for consistency during prediction
 feature_names = X.columns.tolist()
 
-# Scale the data
+# Scale the data for models that require scaling
 scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
 
 # Save the scaler along with feature names
 with open('models/scaler.pkl', 'wb') as f:
@@ -97,53 +74,70 @@ with open('models/scaler.pkl', 'wb') as f:
 
 # Linear Regression
 lr = LinearRegression()
-lr.fit(X_train, y_train)
-y_pred_lr = lr.predict(X_test)
+lr.fit(X_train_scaled, y_train)
+y_pred_lr = lr.predict(X_test_scaled)
 
-# Random Forest
-rf = RandomForestRegressor(random_state=42)
-rf.fit(X_train, y_train)
-y_pred_rf = rf.predict(X_test)
+# Evaluate Linear Regression
+print("\nLinear Regression Evaluation:")
+print(f"MAE: {mean_absolute_error(y_test, y_pred_lr):.2f}")
+print(f"MSE: {mean_squared_error(y_test, y_pred_lr):.2f}")
+print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_lr)):.2f}")
+print(f"R2 Score: {r2_score(y_test, y_pred_lr):.2f}")
 
-# Step 7: Evaluate Models
-def evaluate_model(model_name, y_true, y_pred):
-    print(f"Model: {model_name}")
-    print(f"MAE: {mean_absolute_error(y_true, y_pred):.2f}")
-    print(f"MSE: {mean_squared_error(y_true, y_pred):.2f}")
-    print(f"RMSE: {np.sqrt(mean_squared_error(y_true, y_pred)):.2f}")
-    print(f"R2 Score: {r2_score(y_true, y_pred):.2f}")
-    return r2_score(y_true, y_pred)  # Return the R2 score for saving
-
-# Evaluate models
-lr_r2_score = evaluate_model("Linear Regression", y_test, y_pred_lr)
-rf_r2_score = evaluate_model("Random Forest", y_test, y_pred_rf)
-
-# Save Model Scores
-model_scores = {
-    "Linear Regression": lr_r2_score,
-    "Random Forest": rf_r2_score,
-    # Optionally add LSTM if desired
+# Random Forest (Train on Raw Features)
+param_grid = {
+    'n_estimators': [50, 100, 200],
+    'max_depth': [None, 10, 20, 30],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4]
 }
 
-# LSTM for Sequential Data
-X_train_seq = X_train.reshape((X_train.shape[0], 1, X_train.shape[1]))
-X_test_seq = X_test.reshape((X_test.shape[0], 1, X_test.shape[1]))
+rf = RandomForestRegressor(random_state=42)
+grid_search = GridSearchCV(estimator=rf, param_grid=param_grid, cv=3, scoring='r2', verbose=2, n_jobs=-1)
+grid_search.fit(X_train, y_train)
 
-model = Sequential()
-model.add(LSTM(50, activation='relu', input_shape=(X_train_seq.shape[1], X_train_seq.shape[2])))
-model.add(Dense(1))
-model.compile(optimizer='adam', loss='mse')
-model.fit(X_train_seq, y_train, epochs=10, batch_size=32, verbose=1)
+best_rf = grid_search.best_estimator_
+y_pred_rf = best_rf.predict(X_test)
 
-y_pred_lstm = model.predict(X_test_seq)
-evaluate_model("LSTM", y_test, y_pred_lstm)
+# Evaluate Random Forest
+print("\nRandom Forest Evaluation:")
+print(f"MAE: {mean_absolute_error(y_test, y_pred_rf):.2f}")
+print(f"MSE: {mean_squared_error(y_test, y_pred_rf):.2f}")
+print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_rf)):.2f}")
+print(f"R2 Score: {r2_score(y_test, y_pred_rf):.2f}")
 
-# Step 8: Save Models with Pickle
+# LSTM Model Training
+X_train_seq = X_train_scaled.reshape((X_train_scaled.shape[0], 1, X_train_scaled.shape[1]))
+X_test_seq = X_test_scaled.reshape((X_test_scaled.shape[0], 1, X_test_scaled.shape[1]))
+
+lstm_model = Sequential()
+lstm_model.add(LSTM(50, activation='relu', input_shape=(X_train_seq.shape[1], X_train_seq.shape[2])))
+lstm_model.add(Dense(1))
+lstm_model.compile(optimizer='adam', loss='mse')
+print("\nTraining LSTM Model...")
+lstm_model.fit(X_train_seq, y_train, epochs=10, batch_size=32, verbose=1)
+
+y_pred_lstm = lstm_model.predict(X_test_seq)
+print("\nLSTM Evaluation:")
+print(f"MAE: {mean_absolute_error(y_test, y_pred_lstm):.2f}")
+print(f"MSE: {mean_squared_error(y_test, y_pred_lstm):.2f}")
+print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred_lstm)):.2f}")
+print(f"R2 Score: {r2_score(y_test, y_pred_lstm):.2f}")
+
+# Save Models
 with open('models/linear_regression_model.pkl', 'wb') as f:
     pickle.dump(lr, f)
 with open('models/random_forest_model.pkl', 'wb') as f:
-    pickle.dump(rf, f)
+    pickle.dump(best_rf, f)
+with open('models/lstm_model.pkl', 'wb') as f:
+    pickle.dump(lstm_model, f)
+
+# Save Model Scores
+model_scores = {
+    "Linear Regression": r2_score(y_test, y_pred_lr),
+    "Random Forest": r2_score(y_test, y_pred_rf),
+    "LSTM": r2_score(y_test, y_pred_lstm),
+}
+
 with open('models/model_scores.pkl', 'wb') as f:
     pickle.dump(model_scores, f)
-with open('models/scaler.pkl', 'wb') as f:
-    pickle.dump((scaler, feature_names), f)

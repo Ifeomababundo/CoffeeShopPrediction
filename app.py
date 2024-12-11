@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -10,14 +9,16 @@ def load_resources():
         lr_model = pickle.load(f)
     with open('models/random_forest_model.pkl', 'rb') as f:
         rf_model = pickle.load(f)
+    with open('models/lstm_model.pkl', 'rb') as f:
+        lstm_model = pickle.load(f)  # Assuming the LSTM model is pickled
     with open('models/scaler.pkl', 'rb') as f:
         scaler, feature_names = pickle.load(f)
     with open('models/model_scores.pkl', 'rb') as f:
         model_scores = pickle.load(f)
-    return lr_model, rf_model, scaler, feature_names, model_scores
+    return lr_model, rf_model, lstm_model, scaler, feature_names, model_scores
 
 # Initialize resources
-lr_model, rf_model, scaler, feature_names, model_scores = load_resources()
+lr_model, rf_model, lstm_model, scaler, feature_names, model_scores = load_resources()
 
 # Streamlit App Title
 st.title("Coffee Shop Sales Prediction App")
@@ -48,11 +49,14 @@ input_data = pd.DataFrame(
 # Scale Input Data
 scaled_data = scaler.transform(input_data)
 
+# Prepare Input Data for LSTM
+lstm_input_data = scaled_data.reshape((scaled_data.shape[0], 1, scaled_data.shape[1]))
+
 # Model Selection
 models_selected = st.multiselect(
     "Choose Models for Prediction:",
-    ["Linear Regression", "Random Forest"],
-    default=["Linear Regression", "Random Forest"]
+    ["Linear Regression", "LSTM"],
+    default=["Linear Regression", "LSTM"]
 )
 
 # Predict Button
@@ -63,9 +67,13 @@ if st.button("Predict and Compare"):
         lr_score = model_scores.get("Linear Regression", "N/A")
         results.append(("Linear Regression", lr_prediction, lr_score))
     if "Random Forest" in models_selected:
-        rf_prediction = rf_model.predict(scaled_data)[0]
+        rf_prediction = rf_model.predict(input_data)[0]
         rf_score = model_scores.get("Random Forest", "N/A")
         results.append(("Random Forest", rf_prediction, rf_score))
+    if "LSTM" in models_selected:
+        lstm_prediction = lstm_model.predict(lstm_input_data)[0][0]
+        lstm_score = model_scores.get("LSTM", "N/A")
+        results.append(("LSTM", lstm_prediction, lstm_score))
 
     # Display Results
     st.write("### Model Comparisons")

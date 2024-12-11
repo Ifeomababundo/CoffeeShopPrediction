@@ -6,6 +6,8 @@ This project predicts coffee shop sales revenue using machine learning models.
 
 ## Requirements
 
+This project is deployed here [https://ifeomababundo-coffeeshopprediction-app-ysbnfx.streamlit.app/]
+
 1. **Python Version**: Python 3.9+
 2. **Dependencies**: Install the required Python libraries:
    ```bash
@@ -46,4 +48,6 @@ streamlit run app.py
 5. View the predicted revenue and model performance scores.
 
 ---
+
+This project is deployed here[https://ifeomababundo-coffeeshopprediction-app-ysbnfx.streamlit.app/]
 

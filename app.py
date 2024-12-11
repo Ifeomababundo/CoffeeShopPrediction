@@ -55,7 +55,7 @@ lstm_input_data = scaled_data.reshape((scaled_data.shape[0], 1, scaled_data.shap
 # Model Selection
 models_selected = st.multiselect(
     "Choose Models for Prediction:",
-    ["Linear Regression", "LSTM"],
+    ["Linear Regression", "Random Forest", "LSTM"],
     default=["Linear Regression", "LSTM"]
 )
 

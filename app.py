@@ -3,18 +3,20 @@ import streamlit as st
 import numpy as np
 import pickle
 
-# Load Models and Scaler
-def load_models_and_scaler():
+# Load Models, Scaler, and Model Scores
+def load_resources():
     with open('models/linear_regression_model.pkl', 'rb') as f:
         lr_model = pickle.load(f)
     with open('models/random_forest_model.pkl', 'rb') as f:
         rf_model = pickle.load(f)
-    with open('models/scaler.pkl', 'rb') as f:  # Load the saved scaler
+    with open('models/scaler.pkl', 'rb') as f:
         scaler = pickle.load(f)
-    return lr_model, rf_model, scaler
+    with open('models/model_scores.pkl', 'rb') as f:
+        model_scores = pickle.load(f)  # Load validation scores for models
+    return lr_model, rf_model, scaler, model_scores
 
-# Initialize models and scaler
-lr_model, rf_model, scaler = load_models_and_scaler()
+# Initialize resources
+lr_model, rf_model, scaler, model_scores = load_resources()
 
 # Streamlit App Title
 st.title("Coffee Shop Sales Prediction App")
@@ -46,14 +48,33 @@ input_data = np.array(input_data).reshape(1, -1)
 # Scale Input Data Using the Saved Scaler
 scaled_data = scaler.transform(input_data)  # Use the loaded scaler
 
+# Model Selection
+st.subheader("Select Models to Compare")
+models_selected = st.multiselect(
+    "Choose Models for Prediction:",
+    ["Linear Regression", "Random Forest"],
+    default=["Linear Regression", "Random Forest"]
+)
+
 # Predict Button
-if st.button("Predict Revenue"):
-    # Linear Regression Prediction
-    lr_prediction = lr_model.predict(scaled_data)
+if st.button("Predict and Compare"):
+    results = []
     
-    # Random Forest Prediction
-    rf_prediction = rf_model.predict(scaled_data)
+    # Generate predictions and display validation scores
+    if "Linear Regression" in models_selected:
+        lr_prediction = lr_model.predict(scaled_data)[0]
+        lr_score = model_scores.get("Linear Regression", "N/A")
+        results.append(("Linear Regression", lr_prediction, lr_score))
     
-    # Display Predictions
-    st.write(f"Linear Regression Predicted Revenue: ${lr_prediction[0]:.2f}")
-    st.write(f"Random Forest Predicted Revenue: ${rf_prediction[0]:.2f}")
+    if "Random Forest" in models_selected:
+        rf_prediction = rf_model.predict(scaled_data)[0]
+        rf_score = model_scores.get("Random Forest", "N/A")
+        results.append(("Random Forest", rf_prediction, rf_score))
+    
+    # Display Results
+    st.write("### Model Comparisons")
+    for model_name, prediction, score in results:
+        st.write(f"**{model_name}:**")
+        st.write(f"- Predicted Revenue: ${prediction:.2f}")
+        st.write(f"- Validation R² Score: {score:.2f}")
+

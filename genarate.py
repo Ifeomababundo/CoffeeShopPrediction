@@ -88,10 +88,6 @@ scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
-# Save the scaler after fitting it during training
-with open('models/scaler.pkl', 'wb') as f:
-    pickle.dump(scaler, f)
-
 # Linear Regression
 lr = LinearRegression()
 lr.fit(X_train, y_train)
@@ -109,9 +105,18 @@ def evaluate_model(model_name, y_true, y_pred):
     print(f"MSE: {mean_squared_error(y_true, y_pred):.2f}")
     print(f"RMSE: {np.sqrt(mean_squared_error(y_true, y_pred)):.2f}")
     print(f"R2 Score: {r2_score(y_true, y_pred):.2f}")
+    return r2_score(y_true, y_pred)  # Return the R2 score for saving
 
-evaluate_model("Linear Regression", y_test, y_pred_lr)
-evaluate_model("Random Forest", y_test, y_pred_rf)
+# Evaluate models
+lr_r2_score = evaluate_model("Linear Regression", y_test, y_pred_lr)
+rf_r2_score = evaluate_model("Random Forest", y_test, y_pred_rf)
+
+# Save Model Scores
+model_scores = {
+    "Linear Regression": lr_r2_score,
+    "Random Forest": rf_r2_score,
+    # Optionally add LSTM if desired
+}
 
 # LSTM for Sequential Data
 X_train_seq = X_train.reshape((X_train.shape[0], 1, X_train.shape[1]))
@@ -131,3 +136,7 @@ with open('models/linear_regression_model.pkl', 'wb') as f:
     pickle.dump(lr, f)
 with open('models/random_forest_model.pkl', 'wb') as f:
     pickle.dump(rf, f)
+with open('models/model_scores.pkl', 'wb') as f:
+    pickle.dump(model_scores, f)
+with open('models/scaler.pkl', 'wb') as f:
+    pickle.dump(scaler, f)

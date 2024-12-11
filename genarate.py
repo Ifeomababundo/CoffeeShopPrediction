@@ -83,10 +83,17 @@ y = data['revenue']
 # Split the data
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
+# Save feature names for consistency during prediction
+feature_names = X.columns.tolist()
+
 # Scale the data
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
+
+# Save the scaler along with feature names
+with open('models/scaler.pkl', 'wb') as f:
+    pickle.dump((scaler, feature_names), f)
 
 # Linear Regression
 lr = LinearRegression()
@@ -139,4 +146,4 @@ with open('models/random_forest_model.pkl', 'wb') as f:
 with open('models/model_scores.pkl', 'wb') as f:
     pickle.dump(model_scores, f)
 with open('models/scaler.pkl', 'wb') as f:
-    pickle.dump(scaler, f)
+    pickle.dump((scaler, feature_names), f)
